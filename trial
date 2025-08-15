@@ -1,0 +1,117 @@
+import React, { useState, useEffect } from 'react';
+import { ExpenseForm } from '@/components/ExpenseForm';
+import { ExpenseList } from '@/components/ExpenseList';
+import { ExpenseSummary } from '@/components/ExpenseSummary';
+import { FilterControls } from '@/components/FilterControls';
+import { ExcelUpload } from '@/components/ExcelUpload';
+import { Expense, FilterPeriod } from '@/types/expense';
+import { filterExpensesByPeriod, getPeriodLabel } from '@/utils/dateFilters';
+import { Wallet, TrendingUp } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
+const Index = () => {
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [filterPeriod, setFilterPeriod] = useState<FilterPeriod>('all');
+
+  // Load expenses from localStorage on component mount
+  useEffect(() => {
+    const savedExpenses = localStorage.getItem('expenses');
+    if (savedExpenses) {
+      const parsedExpenses = JSON.parse(savedExpenses).map((expense: any) => ({
+        ...expense,
+        date: new Date(expense.date)
+      }));
+      setExpenses(parsedExpenses);
+    }
+  }, []);
+
+  // Save expenses to localStorage whenever expenses change
+  useEffect(() => {
+    localStorage.setItem('expenses', JSON.stringify(expenses));
+  }, [expenses]);
+
+  const handleAddExpense = (expenseData: Omit<Expense, 'id'>) => {
+    const newExpense: Expense = {
+      ...expenseData,
+      id: crypto.randomUUID(),
+    };
+    setExpenses(prev => [newExpense, ...prev]);
+  };
+
+  const handleUploadExpenses = (uploadedExpenses: Omit<Expense, 'id'>[]) => {
+    const newExpenses: Expense[] = uploadedExpenses.map(expense => ({
+      ...expense,
+      id: crypto.randomUUID(),
+    }));
+    setExpenses(prev => [...newExpenses, ...prev]);
+  };
+
+  // Filter expenses based on selected period
+  const filteredExpenses = filterExpensesByPeriod(expenses, filterPeriod);
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <div className="bg-gradient-primary text-white">
+        <div className="max-w-4xl mx-auto px-4 py-8">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-12 h-12 rounded-full bg-white bg-opacity-20 flex items-center justify-center">
+              <Wallet className="w-6 h-6" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold">Expense Tracker</h1>
+              <p className="text-white/80">Keep track of your daily spending</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 text-white/90">
+            <TrendingUp className="w-4 h-4" />
+            <span className="text-sm">Smart financial tracking made simple</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        {/* Filter Controls */}
+        <div className="mb-8">
+          <FilterControls
+            selectedPeriod={filterPeriod}
+            onPeriodChange={setFilterPeriod}
+            expenseCount={filteredExpenses.length}
+          />
+        </div>
+
+        {/* Summary */}
+        <ExpenseSummary expenses={filteredExpenses} />
+        
+        {/* Input Methods */}
+        <Tabs defaultValue="manual" className="mb-8">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="manual">Manual Entry</TabsTrigger>
+            <TabsTrigger value="upload">Excel Upload</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="manual" className="mt-6">
+            <ExpenseForm onAddExpense={handleAddExpense} />
+          </TabsContent>
+          
+          <TabsContent value="upload" className="mt-6">
+            <ExcelUpload onUploadExpenses={handleUploadExpenses} />
+          </TabsContent>
+        </Tabs>
+        
+        {/* Expenses List */}
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-semibold text-foreground">
+              Expenses - {getPeriodLabel(filterPeriod)}
+            </h2>
+          </div>
+          <ExpenseList expenses={filteredExpenses} />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Index;
